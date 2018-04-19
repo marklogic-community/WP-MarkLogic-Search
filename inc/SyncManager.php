@@ -27,6 +27,11 @@ class SyncManager
      */
     private $logger;
 
+	/**
+	 * @var array
+	 */
+    private $scheduledPosts = [];
+
     public function __construct(Driver $driver, LoggerInterface $logger)
     {
         $this->driver = $driver;
@@ -35,20 +40,46 @@ class SyncManager
 
     public function connect()
     {
-        add_action('wp_insert_post', array($this, 'handlePost'), 999, 2);
+        add_action('wp_insert_post', array($this, 'scheduleHandlePost'), 999, 2);
         add_action('edit_attachment', array($this, 'handleAttachment'), 999);
         add_action('add_attachment', array($this, 'handleAttachment'), 999);
         add_action('before_delete_post', array($this, 'handleDelete'), 999);
         add_action('delete_attachment', array($this, 'handleDelete'), 999);
+        add_action('updated_postmeta', array($this, 'scheduleHandlePostMeta'), 10, 4);
+		add_action('added_postmeta', array($this, 'scheduleHandlePostMeta'), 10, 4);
+		add_action('set_object_terms', array($this, 'scheduleHandlePostTerms'), 10, 4);
+        add_action('shutdown', array($this, 'handleScheduledPosts'));
     }
 
     public function disconnect()
     {
-        remove_action('wp_insert_post', array($this, 'handlePost'), 999, 2);
+        remove_action('wp_insert_post', array($this, 'scheduleHandlePost'), 999, 2);
         remove_action('edit_attachment', array($this, 'handleAttachment'), 999);
         remove_action('add_attachment', array($this, 'handleAttachment'), 999);
         remove_action('deleted_post', array($this, 'handleDelete'), 999);
     }
+
+    public function scheduleHandlePost($postId, $post) {
+    	$this->scheduledPosts[] = $postId;
+	}
+
+	public function scheduleHandlePostMeta($metaId, $postId, $metaKey, $metaValue) {
+		$this->scheduledPosts[] = $postId;
+	}
+
+	public function scheduleHandlePostTerms($postId, $terms, $tt_ids, $taxonomy) {
+		$this->scheduledPosts[] = $postId;
+	}
+
+	public function handleScheduledPosts() {
+    	if (! empty($this->scheduledPosts) && is_array($this->scheduledPosts)) {
+    		$scheduledPosts = array_unique($this->scheduledPosts);
+    		foreach($scheduledPosts as $scheduledPostId) {
+    			$scheduledPost = get_post($scheduledPostId);
+    			$this->handlePost($scheduledPostId, $scheduledPost);
+			}
+		}
+	}
 
     public function handlePost($postId, $post)
     {
@@ -114,6 +145,7 @@ class SyncManager
 
     private function isPersistablePostType($post)
     {
+
         $type = get_post_type_object($post->post_type);
         return _ml_wpsearch_is_type_persistable($type);
     }
