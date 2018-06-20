@@ -30,6 +30,12 @@ class Options extends Hooks
 
     public static function replaceSearch()
     {
+        if (
+            defined('ML_WPSEARCH_DISABLE_SEARCH_PAGE') &&
+            ML_WPSEARCH_DISABLE_SEARCH_PAGE )
+        {
+            return false;
+        }
         $opts = static::getOptions(self::SETTING_SEARCH);
         return !empty($opts['replace_search']) && !empty(self::getSearchPage());
     }
@@ -101,28 +107,33 @@ class Options extends Hooks
             )
         );
 
-        add_settings_field(
-            $spid = self::idFor(self::SETTING_SEARCH, 'search_page'),
-            __('Search Page', 'marklogic'),
-            array($this, 'dropdownPages'),
-            self::SETTING_SEARCH,
-            'ml_wpsearch_search_options',
-            array(
-                'label_for' => $spid,
-                'field' => 'search_page',
-            )
-        );
-        add_settings_field(
-            $sid = self::idFor(self::SETTING_SEARCH, 'replace_search'),
-            __('Replace WordPress Search', 'marklogic'),
-            array($this, 'checkboxInput'),
-            self::SETTING_SEARCH,
-            'ml_wpsearch_search_options',
-            array(
-                'label_for' => $sid,
-                'field' => 'replace_search',
-            )
-        );
+        if (
+            ! defined('ML_WPSEARCH_DISABLE_SEARCH_PAGE') ||
+            ! ML_WPSEARCH_DISABLE_SEARCH_PAGE )
+        {
+            add_settings_field(
+                $spid = self::idFor(self::SETTING_SEARCH, 'search_page'),
+                __('Search Page', 'marklogic'),
+                array($this, 'dropdownPages'),
+                self::SETTING_SEARCH,
+                'ml_wpsearch_search_options',
+                array(
+                    'label_for' => $spid,
+                    'field' => 'search_page',
+                )
+            );
+            add_settings_field(
+                $sid = self::idFor(self::SETTING_SEARCH, 'replace_search'),
+                __('Replace WordPress Search', 'marklogic'),
+                array($this, 'checkboxInput'),
+                self::SETTING_SEARCH,
+                'ml_wpsearch_search_options',
+                array(
+                    'label_for' => $sid,
+                    'field' => 'replace_search',
+                )
+            );
+        }
         add_settings_field(
             $restConfigOption = self::idFor(self::SETTING_SEARCH, 'rest_config_option'),
             __('REST Config Option', 'marklogic'),
