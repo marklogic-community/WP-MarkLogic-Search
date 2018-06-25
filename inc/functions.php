@@ -99,12 +99,9 @@ function ml_wpsearch_search($querytext)
         return [null, null, null];
     }
 
-    $options = Options::getOptions();
     $results = ml_wpsearch_search_query($querytext, array(
         'start' => isset($_REQUEST['start']) ? $_REQUEST['start'] : 1,
         'pageLength' => isset($_REQUEST['pageLength']) ? $_REQUEST['pageLength'] : 10,
-        'options' => $options['rest_config_option'],
-        'transform' => $options['rest_transform'],
     ));
     if (null === $results)
     {
@@ -213,13 +210,15 @@ function ml_wpsearch_search_query($query, $params)
         $new_query = wp_json_encode($query);
     }
 
+    $options = Options::getOptions();
+
     // Provides way for changing search query and parameters.
     $new_params = apply_filters('ml_wpsearch_search_query_params', wp_parse_args($params, array(
         'start' => 1,
         'pageLength' => 10,
         'view' => 'all',
-        'options' => '',
-        'transform' => '',
+        'options' => $options['rest_config_option'],
+        'transform' => $options['rest_transform'],
     )));
 
     $new_query = apply_filters('ml_wpsearch_search_query_value', $new_query, $params);
