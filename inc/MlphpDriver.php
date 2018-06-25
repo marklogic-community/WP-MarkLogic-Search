@@ -135,9 +135,9 @@ final class MlphpDriver implements Driver
         );
     }
 
-    public function search($querytext, $params)
+    public function search($querytext, $params, $structured = false)
     {
         $search = new Search($this->client);
-        return $search->retrieve($querytext, array_filter($params));
+        return $search->retrieve($querytext, array_filter($params), $structured);
     }
 }
