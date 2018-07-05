@@ -98,8 +98,9 @@ final class MlphpDriver implements Driver
         return new BulkResult($count, $errors);
     }
 
-    private function createDocument($blogId, $post, $postMeta=null)
+    private function createDocument($blogId, $post, $postMeta = null)
     {
+
         return new Document($this->client, sprintf('/%s.xml', apply_filters(
             'ml_wpsearch_document_uri',
             $this->createURIwithPostID($blogId, $post),
@@ -134,9 +135,9 @@ final class MlphpDriver implements Driver
         );
     }
 
-    public function search($querytext, $params)
+    public function search($querytext, $params, $structured = false)
     {
         $search = new Search($this->client);
-        return $search->retrieve($querytext, array_filter($params));
+        return $search->retrieve($querytext, array_filter($params), $structured);
     }
 }
