@@ -51,7 +51,7 @@ function ml_wpsearch_get_logger()
 function ml_wpsearch_create_client()
 {
     $options = Options::getOptions();
-    
+
     foreach (array('username', 'password') as $req) {
         if (empty($options[$req])) {
             return null;
@@ -87,7 +87,7 @@ function _ml_wpsearch_is_type_persistable($type)
 }
 
 /**
- * Perform a search on the marklogic server.
+ * Gets results for search page.
  *
  * @param string $querytext the search to perform
  * @return array [$result, $nextLink, $prevLink];
@@ -99,62 +99,14 @@ function ml_wpsearch_search($querytext)
         return [null, null, null];
     }
 
-    $driver = DriverRegistry::getInstance()->get('marklogic');
-    $options = Options::getOptions();
-
-    $searchExcludeArr = explode(PHP_EOL, $options['search_exclude']);
-    
-    foreach ($searchExcludeArr as $searchExclude) {
-
-        $exitLoop = false;
-
-        if (preg_match('/(\w+)\s(.+)\s({?{?.+}?}?)/', $searchExclude, $matches)) {
-            
-            $elem = $matches[1];
-            $oper = $matches[2];   
-            $value = $matches[3];
-
-            if (preg_match('/^{{(\w+)}}?/', $value, $specialMatches)) {
-            
-                switch($specialMatches[1]) {
-                    case 'today':
-                        $value = '"' . date("Y-m-d\TH:i:s+00:00") . '"';
-                        break;
-                    default:
-                        $exitLoop = true;
-                        break;
-                }
-            } 
-
-            if ($exitLoop)
-                break;
-
-            switch(ord($oper)) {
-                case 61:
-                    $oper = ":";
-                    break;
-                case 62:
-                    $oper = "GT";
-                    break;
-                case 38:
-                    $oper = "LT";
-                    break;
-                default:
-                    break;
-            }
-
-            $querytext .= " AND -" . $elem . " " . $oper . " " . $value;
-
-        } 
-    }
-
-    $results = $driver->search(stripslashes(sanitize_text_field($querytext)), array(
+    $results = ml_wpsearch_search_query($querytext, array(
         'start' => isset($_REQUEST['start']) ? $_REQUEST['start'] : 1,
         'pageLength' => isset($_REQUEST['pageLength']) ? $_REQUEST['pageLength'] : 10,
-        'view' => 'all',
-        'options' => $options['rest_config_option'],
-        'transform' => $options['rest_transform'],
     ));
+    if (null === $results)
+    {
+        return [null, null, null];
+    }
 
     if ($results->getTotal() < 1) {
         return [$results, null, null];
@@ -182,6 +134,98 @@ function ml_wpsearch_search($querytext)
     }
 
     return [$results, $nextLink, $prevLink];
+}
+
+/**
+ * Queries MarkLogic server for search results.
+ *
+ * @param string|array $query  The query as either a string or array for structured queries.
+ * @param array $params Search query parameters.
+ * @return SearchResults|null
+ */
+function ml_wpsearch_search_query($query, $params)
+{
+    $driver = DriverRegistry::getInstance()->get('marklogic');
+    $new_query = $query;
+
+    if (is_string($query))
+    {
+        $new_query = trim($query);
+        if (!$new_query)
+        {
+            return null;
+        }
+        $searchExcludeArr = explode(PHP_EOL, $options['search_exclude']);
+
+        foreach ($searchExcludeArr as $searchExclude) {
+
+            $exitLoop = false;
+
+            if (preg_match('/(\w+)\s(.+)\s({?{?.+}?}?)/', $searchExclude, $matches)) {
+
+                $elem = $matches[1];
+                $oper = $matches[2];
+                $value = $matches[3];
+
+                if (preg_match('/^{{(\w+)}}?/', $value, $specialMatches)) {
+
+                    switch($specialMatches[1]) {
+                        case 'today':
+                            $value = '"' . date("Y-m-d\TH:i:s+00:00") . '"';
+                            break;
+                        default:
+                            $exitLoop = true;
+                            break;
+                    }
+                }
+
+                if ($exitLoop)
+                    break;
+
+                switch(ord($oper)) {
+                    case 61:
+                        $oper = ":";
+                        break;
+                    case 62:
+                        $oper = "GT";
+                        break;
+                    case 38:
+                        $oper = "LT";
+                        break;
+                    default:
+                        break;
+                }
+
+                $new_query .= " AND -{$elem} {$oper} {$value}";
+
+            }
+        }
+    }
+    elseif (is_array($query))
+    {
+        if (!$query)
+        {
+            return null;
+        }
+        $new_query = wp_json_encode($query);
+    }
+
+    $options = Options::getOptions();
+
+    // Provides way for changing search query and parameters.
+    $new_params = apply_filters('ml_wpsearch_search_query_params', wp_parse_args($params, array(
+        'start' => 1,
+        'pageLength' => 10,
+        'view' => 'all',
+        'options' => $options['rest_config_option'],
+        'transform' => $options['rest_transform'],
+    )));
+
+    $new_query = apply_filters('ml_wpsearch_search_query_value', $new_query, $params);
+
+    $results = $driver->search(stripslashes(sanitize_text_field($new_query)), $new_params, is_array($query)); // Assume structured query for arrays.
+
+    return $results;
 }
 
 function _ml_wpsearch_build_facet_url_query($querytext, $constraintQuery)
