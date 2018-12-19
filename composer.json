@@ -1,7 +1,7 @@
 {
-  "name": "marklogic-marketing/WP-MarkLogic-Search",
+  "name": "marklogic-community/WP-MarkLogic-Search",
   "description": "Use MarkLogic for search on WordPress website.",
-  "homepage": "https://github.com/marklogic-marketing/WP-MarkLogic-Search",
+  "homepage": "https://github.com/marklogic-community/WP-MarkLogic-Search",
   "keywords": [
     "wordpress","marklogic","search"
   ],
