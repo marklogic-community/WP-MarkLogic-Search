@@ -220,6 +220,15 @@ function ml_wpsearch_search_query($query, $params)
         'options' => $options['rest_config_option'],
         'transform' => $options['rest_transform'],
     )));
+    
+    // send to different endpoint with empty search
+    if ( is_array( $new_params['options'] ) ) {
+        if ( empty( $query['search']['qtext'] ) && !empty( $new_params['options'][1] ) ) {
+            $new_params['options'] = $new_params['options'][1];
+        } else {
+            $new_params['options'] = $new_params['options'][0];
+        }
+    }
 
     $new_query = apply_filters('ml_wpsearch_search_query_value', $new_query, $params);
 
